@@ -8,6 +8,7 @@
 #include <netinet/in.h>
 #include <strings.h> 
 #include <pthread.h>
+#include "lines.h"
 
 
 
@@ -24,6 +25,10 @@
 #define ERR_SOCKET_OPTION 110
 #define ERR_SOCKET_BIND 120
 #define ERR_SOCKET_LISTEN 130
+// request
+#define MAX_REQ_TYPE_LEN 20
+#define REQ_REGISTER "REGISTER"
+#define REQ_UNREGISTER "UNREGISTER"
 
 
 
@@ -78,11 +83,24 @@ int wait_till_socket_copying_is_done();
 */
 int clean_up(int server_socket, pthread_attr_t* p_attr);
 /*
-	Used as main function for request threads. Processes request from the socket passed in
-	arguments and distributes it to request specific functions. Locks the main thread until the 
-	socket from argument is copied - signals on condition variable.
+	Once a request arrives to the server through the general socket (the socket bound to the
+	port specified in cmd) the server will create a new thread for processing the request and
+	this is the function which will be runnig in the newly created thread. The function will lock 
+	mutex_csd while copying the client socket to a local variable and when it is finish it will
+	signal on cond_csd.
 */
 void* manage_request(void* p_socket);
+/*
+	Reads from the socket in order to identify request type, i.e. register, unregister, connect....
+	If the request could be identified then a request specific function is called. If the request
+	could not be identified or the sender doesn't have enought privileges (all the commands which 
+	require being connected, because they are processed in the same connection that the connect
+	request) an approporiate message will be send back to the socket. 
+*/
+void identify_and_process_request(int socket);
+
+void register_user(int socket);
+void unregister(int socket);
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -375,6 +393,7 @@ void* manage_request(void* p_socket)
 {
 	int socket = -1;
 
+	// lock the main thread until the socket is copied
 	if (pthread_mutex_lock(&mutex_csd) != 0)
 	{
 		printf("ERROR manage_request - could not lock mutex\n");
@@ -384,19 +403,57 @@ void* manage_request(void* p_socket)
 	memcpy(&socket, p_socket, sizeof(int));
 	is_copied = 1;
 	
+	// notify that socket was copied
 	if (pthread_cond_signal(&cond_csd) != 0)
 		printf("ERROR manage_request - could not signal condition\n");
 
 	if (pthread_mutex_unlock(&mutex_csd) != 0)
 		printf("ERROR manage_request - could not unlock mutex\n");
 
-	// perform actions
-	printf("Heloooo\n");
+	// process the request
+	if (socket > 0)
+		identify_and_process_request(socket);
 
 	// close the client socket
 	if (close(socket) != 0)
 		perror("ERROR manage request - could not close client socket");
 
 	return NULL;
+}
+
+
+
+void identify_and_process_request(int socket)
+{
+	char req_type[MAX_REQ_TYPE_LEN];
+	read_line(socket, req_type, MAX_REQ_TYPE_LEN);
+
+	// process request type
+	if (strcmp(req_type, REQ_REGISTER) == 0)
+		register_user(socket);
+	else if (strcmp(req_type, REQ_UNREGISTER) == 0)
+		unregister(socket);
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// register
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void register_user(int socket)
+{
+
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// unregister
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void unregister(int socket)
+{
+
 }
 	

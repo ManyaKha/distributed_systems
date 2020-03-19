@@ -2,7 +2,7 @@
 #include <errno.h>
 #include "lines.h"
 
-int enviar(int socket, char *mensaje, int longitud)
+int send_msg(int socket, char *mensaje, int longitud)
 {
 	int r;
 	int l = longitud;
@@ -20,7 +20,7 @@ int enviar(int socket, char *mensaje, int longitud)
 		return(0);	/* se ha enviado longitud */
 }
 
-int recibir(int socket, char *mensaje, int longitud)
+int receive_msg(int socket, char *mensaje, int longitud)
 {
 	int r;
 	int l = longitud;
@@ -40,7 +40,7 @@ int recibir(int socket, char *mensaje, int longitud)
 
 
 
-ssize_t readLine(int fd, void *buffer, size_t n)
+ssize_t read_line(int fd, void *buffer, size_t n)
 {
 	ssize_t numRead;  /* num of bytes fetched by last read() */
 	size_t totRead;	  /* total bytes read so far */
@@ -86,7 +86,7 @@ ssize_t readLine(int fd, void *buffer, size_t n)
 }
 
 
-ssize_t writeLine(int fd, void *buffer, size_t n)
+ssize_t write_line(int fd, void *buffer, size_t n)
 {
         int err;
         char endLine[] = "\n";
@@ -97,10 +97,10 @@ ssize_t writeLine(int fd, void *buffer, size_t n)
                 return -1;
         }
 
-        err = enviar(fd, buffer, n);
+        err = send_msg(fd, buffer, n);
         if (err == -1)
                 return err;
-        err = enviar(fd, endLine, 1);
+        err = send_msg(fd, endLine, 1);
         if (err == -1)
                 return err;
 

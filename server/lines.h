@@ -1,6 +1,6 @@
 #include <unistd.h>
 
-int enviar(int socket, char *mensaje, int longitud);
-int recibir(int socket, char *mensaje, int longitud);
-ssize_t readLine(int fd, void *buffer, size_t n);
-ssize_t writeLine(int fd, void *buffer, size_t n);
+int send_msg(int socket, char *mensaje, int longitud);
+int receive_msg(int socket, char *mensaje, int longitud);
+ssize_t read_line(int fd, void *buffer, size_t n);
+ssize_t write_line(int fd, void *buffer, size_t n);
