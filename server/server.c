@@ -20,6 +20,8 @@
 #define DEFAULT_PORT 7777
 #define MAX_PORT_NUMBER 49151
 #define MIN_PORT_NUMBER 1024
+// ip address
+#define MAX_IP_ADDR_LEN 15
 // main socket
 #define REQUESTS_QUEUE_SIZE 10
 #define ERR_SOCKET_DESCRIPTOR 100
@@ -44,6 +46,25 @@
 // delete user
 #define DELETE_USER_SUCCESS 0
 #define DELETE_USER_NO_SUCH_USER 1
+// list users
+#define LIST_USERS_SUCCESS 0
+#define LIST_USERS_NO_SUCH_USER 1
+#define LIST_USERS_DISCONNECTED 2
+#define LIST_USERS_OTHER_ERROR 3
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// structs
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct user_data {
+	char username[MAX_USERNAME_LEN + 1];
+	char ip[MAX_IP_ADDR_LEN + 1];
+	char port[6];
+};
+
+typedef struct user_data user;
 
 
 
@@ -108,27 +129,44 @@ void* manage_request(void* p_socket);
 /*
 	Reads from the socket in order to identify request type, i.e. register, unregister, connect....
 	If the request could be identified then a request specific function is called. If the request
-	could not be identified or the sender doesn't have enought privileges (all the commands which 
-	require being connected, because they are processed in the same connection that the connect
-	request) an approporiate message will be send back to the socket. 
+	could not be identified an approporiate message will be send back to the socket. 
 */
 void identify_and_process_request(int socket);
 
 void register_user(int socket);
 
 /*
+	Returns number of characters read
+*/
+int read_username(int socket, char* username);
+
+/*
 	checks if username is valid.
 	Returns 1 if yes 0 if no
 */
 int is_username_valid(char* username);
-
-int is_username_unique(char* username);
+/*
+	checks if the user with the username is registered.
+	Returns 1 if the user is registered and 0 if no
+*/
+int is_registered(char* username);
 
 int store_user(char* username);
 
 void unregister(int socket);
 
 int delete_user(char* username);
+/*
+	checks if the user with the username is connected to the server.
+	Returns 1 if the user is connected and 0 if no
+*/
+int is_connected(char* username);
+
+void list_users(int socket);
+
+int get_connected_users_list(user** users_list);
+
+void send_users_list(int socket, user* users_list, int num_of_users);
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -473,27 +511,34 @@ void identify_and_process_request(int socket)
 void register_user(int socket)
 {
 	int result = REGISTER_SUCCESS;
-
+	
 	char username[MAX_USERNAME_LEN + 1];
-	read_line(socket, username, MAX_USERNAME_LEN);
-	username[MAX_USERNAME_LEN] = '\0'; // just in case if the username was not finished properly
-
-	if (is_username_valid(username))
+	if (read_username(socket, username) > 0)	// username specified
 	{
-		if (is_username_unique(username))
+		if (is_username_valid(username))
 		{
-			if (store_user(username) != STORE_USER_SUCCESS)
-				result = REGISTER_OTHER_ERROR;
+			if (!is_registered(username))
+			{
+				if (store_user(username) != STORE_USER_SUCCESS)
+					result = REGISTER_OTHER_ERROR;
+			}
+			else
+				result = REGISTER_NON_UNIQUE_USERNAME;
 		}
 		else
-			result = REGISTER_NON_UNIQUE_USERNAME;
+			result = REGISTER_OTHER_ERROR;
 	}
-	else
+	else	// no username
+	{
+		printf("ERROR register_user - no username\n");
 		result = REGISTER_OTHER_ERROR;
+	}
 
 	char response[2];
 	sprintf(response, "%d", result);
-	send_msg(socket, response, 2);
+	
+	if (send_msg(socket, response, 2) != 0)
+		printf("ERROR register_user - could not send message\n");
 }
 
 
@@ -519,21 +564,25 @@ int is_username_valid(char* username)
 
 
 
-int is_username_unique(char* username)
-{
-	// TODO IMPLEMENT
-	printf("NOT YET IMPLEMENTED is_username_unique\n");
-	return 1;
-}
-
-
-
 int store_user(char* username)
 {
 	// TODO implement
 	printf("NOT YET IMPLEMENTED store_user\n");
 
 	return STORE_USER_SUCCESS;
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// is_registered
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+int is_registered(char* username)
+{
+	// TODO IMPLEMENT
+	printf("NOT YET IMPLEMENTED is_username_unique\n");
+	return 1;
 }
 
 
@@ -547,17 +596,23 @@ void unregister(int socket)
 	int res = UNREGISTER_SUCCESS;
 
 	char username[MAX_USERNAME_LEN + 1];
-	read_line(socket, username, MAX_USERNAME_LEN);
-	username[MAX_USERNAME_LEN] = '\0'; // just in case the username was not properly ended
-
-	int delete_res = delete_user(username);
-
-	switch (delete_res)
+	if (read_username(socket, username) > 0)	// username specified
 	{
-		case DELETE_USER_SUCCESS 		: res = UNREGISTER_SUCCESS; break;
-		case DELETE_USER_NO_SUCH_USER 	: res = UNREGISTER_NO_SUCH_USER; break;
-		default							: res = UNREGISTER_OTHER_ERROR; 
+		int delete_res = delete_user(username);
+
+		switch (delete_res)
+		{
+			case DELETE_USER_SUCCESS 		: res = UNREGISTER_SUCCESS; break;
+			case DELETE_USER_NO_SUCH_USER 	: res = UNREGISTER_NO_SUCH_USER; break;
+			default							: res = UNREGISTER_OTHER_ERROR; 
+		}
 	}
+	else
+	{
+		printf("ERROR unregister - no username specified\n");
+		res = UNREGISTER_OTHER_ERROR;
+	}
+	
 
 	char response[2];
 	sprintf(response, "%d", res);
@@ -571,5 +626,106 @@ int delete_user(char* username)
 	// TODO IMPLEMENT
 	printf("NOT YET IMPLEMENTED delete_user\n");
 	return DELETE_USER_SUCCESS;
+}
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// is_connected
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+int is_connected(char* username)
+{
+	// TODO IMPLEMENT
+	printf("NOT YET IMPLEMENTED is_connected\n");
+
+	return 1;
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// list_users
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void list_users(int socket)
+{
+	int res = LIST_USERS_SUCCESS;
+	user* users_list = NULL;
+	int num_of_users = -1;
+
+	char username[MAX_USERNAME_LEN + 1];
+	if (read_username(socket, username) > 0) // if user specified
+	{
+		if (is_registered(username))
+		{
+			if (is_connected(username))
+				num_of_users = get_connected_users_list(&users_list);
+			else
+				res = LIST_USERS_DISCONNECTED;
+		}
+		else
+			res = LIST_USERS_NO_SUCH_USER;
+	}
+	else // no username specified
+	{
+		printf("ERROR list_users - no user specified");
+		res = LIST_USERS_OTHER_ERROR;
+	}
+
+	// send result
+	char response_res_code[2];
+	sprintf(response_res_code, "%d", res);
+	send_msg(socket, response_res_code, 2);
+
+	if (res == LIST_USERS_SUCCESS)
+		send_users_list(socket, users_list, num_of_users);
+}
+
+
+
+int get_connected_users_list(user** p_users_list)
+{
+	// TODO do real implementation
+	user* users = malloc(3 * sizeof(user));
+
+	strcpy(users[0].username, "user1");
+	strcpy(users[0].ip, "87.43.21.1");
+	strcpy(users[0].port, "59000");
+
+	strcpy(users[1].username, "user2");
+	strcpy(users[1].ip, "87.43.21.2");
+	strcpy(users[1].port, "59001");
+
+	strcpy(users[2].username, "user3");
+	strcpy(users[2].ip, "87.43.21.3");
+	strcpy(users[2].port, "59003");
+
+	*p_users_list = users;
+
+	return 3;
+}
+
+
+
+void send_users_list(int socket, user* users_list, int num_of_users)
+{
+	// send number of users
+
+
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// read_user_name
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+int read_username(int socket, char* username)
+{
+	int total_read = read_line(socket, username, MAX_USERNAME_LEN);
+	username[MAX_USERNAME_LEN] = '\0'; // just in case if the username was not finished properly
+	
+	return total_read;
 }
 	
