@@ -9,6 +9,7 @@
 #include <strings.h> 
 #include <pthread.h>
 #include "lines.h"
+#include <regex.h>
 
 
 
@@ -29,6 +30,13 @@
 #define MAX_REQ_TYPE_LEN 20
 #define REQ_REGISTER "REGISTER"
 #define REQ_UNREGISTER "UNREGISTER"
+// register
+#define MAX_USERNAME_LEN 256
+#define REGISTER_SUCCESS 0
+#define REGISTER_NON_UNIQUE_USERNAME 1
+#define REGISTER_OTHER_ERROR 2
+// store user
+#define STORE_USER_SUCCESS 0
 
 
 
@@ -100,6 +108,17 @@ void* manage_request(void* p_socket);
 void identify_and_process_request(int socket);
 
 void register_user(int socket);
+
+/*
+	checks if username is valid.
+	Returns 1 if yes 0 if no
+*/
+int is_username_valid(char* username);
+
+int is_username_unique(char* username);
+
+int store_user(char* username);
+
 void unregister(int socket);
 
 
@@ -425,8 +444,9 @@ void* manage_request(void* p_socket)
 
 void identify_and_process_request(int socket)
 {
-	char req_type[MAX_REQ_TYPE_LEN];
+	char req_type[MAX_REQ_TYPE_LEN + 1];
 	read_line(socket, req_type, MAX_REQ_TYPE_LEN);
+	req_type[MAX_REQ_TYPE_LEN] = '\0'; // just in case if the request type is in wrong format
 
 	// process request type
 	if (strcmp(req_type, REQ_REGISTER) == 0)
@@ -443,7 +463,68 @@ void identify_and_process_request(int socket)
 
 void register_user(int socket)
 {
+	int result = REGISTER_SUCCESS;
 
+	char username[MAX_USERNAME_LEN + 1];
+	read_line(socket, username, MAX_USERNAME_LEN);
+	username[MAX_USERNAME_LEN] = '\0'; // just in case if the username was not finished properly
+
+	if (is_username_valid(username))
+	{
+		if (is_username_unique(username))
+		{
+			if (store_user(username) != STORE_USER_SUCCESS)
+				result = REGISTER_OTHER_ERROR;
+		}
+		else
+			result = REGISTER_NON_UNIQUE_USERNAME;
+	}
+	else
+		result = REGISTER_OTHER_ERROR;
+
+	char response[2];
+	sprintf(response, "%d", result);
+	send_msg(socket, response, 2);
+}
+
+
+
+int is_username_valid(char* username)
+{
+	int res = 1;
+
+	regex_t regex;
+	if (regcomp(&regex, "^[A-Za-z0-9_]+$", REG_EXTENDED | REG_NOSUB) != 0)
+	{
+		printf("ERROR is_username_valid - wrong regex\n");
+		return 0;
+	}
+
+	if (regexec(&regex, username, 0, NULL, 0) != 0)	// no match
+		res = 0;
+
+	regfree(&regex);
+
+	return res;
+}
+
+
+
+int is_username_unique(char* username)
+{
+	// TODO IMPLEMENT
+	printf("NOT YET IMPLEMENTED is_username_unique\n");
+	return 1;
+}
+
+
+
+int store_user(char* username)
+{
+	// TODO implement
+	printf("NOT YET IMPLEMENTED store_user\n");
+
+	return STORE_USER_SUCCESS;
 }
 
 

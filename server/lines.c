@@ -82,7 +82,7 @@ ssize_t read_line(int fd, void *buffer, size_t n)
 	}
 	
 	*buf = '\0';
-    	return totRead;
+    return totRead;
 }
 
 
