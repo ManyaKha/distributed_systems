@@ -37,6 +37,13 @@
 #define REGISTER_OTHER_ERROR 2
 // store user
 #define STORE_USER_SUCCESS 0
+// unregister
+#define UNREGISTER_SUCCESS 0
+#define UNREGISTER_NO_SUCH_USER 1
+#define UNREGISTER_OTHER_ERROR 2
+// delete user
+#define DELETE_USER_SUCCESS 0
+#define DELETE_USER_NO_SUCH_USER 1
 
 
 
@@ -120,6 +127,8 @@ int is_username_unique(char* username);
 int store_user(char* username);
 
 void unregister(int socket);
+
+int delete_user(char* username);
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -535,6 +544,32 @@ int store_user(char* username)
 
 void unregister(int socket)
 {
+	int res = UNREGISTER_SUCCESS;
 
+	char username[MAX_USERNAME_LEN + 1];
+	read_line(socket, username, MAX_USERNAME_LEN);
+	username[MAX_USERNAME_LEN] = '\0'; // just in case the username was not properly ended
+
+	int delete_res = delete_user(username);
+
+	switch (delete_res)
+	{
+		case DELETE_USER_SUCCESS 		: res = UNREGISTER_SUCCESS; break;
+		case DELETE_USER_NO_SUCH_USER 	: res = UNREGISTER_NO_SUCH_USER; break;
+		default							: res = UNREGISTER_OTHER_ERROR; 
+	}
+
+	char response[2];
+	sprintf(response, "%d", res);
+	send_msg(socket, response, 2);
+}
+
+
+
+int delete_user(char* username)
+{
+	// TODO IMPLEMENT
+	printf("NOT YET IMPLEMENTED delete_user\n");
+	return DELETE_USER_SUCCESS;
 }
 	
