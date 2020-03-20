@@ -55,34 +55,35 @@ ssize_t read_line(int fd, void *buffer, size_t n)
 	buf = buffer;
 	totRead = 0;
 	
-	for (;;) {
-        	numRead = read(fd, &ch, 1);	/* read a byte */
-			
-        	if (numRead == -1) 
-			{	
-            	if (errno == EINTR)	/* interrupted -> restart read() */
-                	continue;
-            	else
-					return -1;		/* some other error */
-        	} 
-			else if (numRead == 0) 
-			{	/* EOF */
-            	if (totRead == 0)	/* no byres read; return 0 */
-                	return 0;
-				else
-            		break;
-        	} 
-			else 
-			{			/* numRead must be 1 if we get here*/
-				if (ch == '\n')
-					break;
-				if (ch == '\0')
-					break;
-				if (totRead < n - 1) 
-				{		/* discard > (n-1) bytes */
-					totRead++;
-					*buf++ = ch; 
-			}
+	for (;;) 
+	{
+		numRead = read(fd, &ch, 1);	/* read a byte */
+		
+		if (numRead == -1) 
+		{	
+			if (errno == EINTR)	/* interrupted -> restart read() */
+				continue;
+			else
+				return -1;		/* some other error */
+		} 
+		else if (numRead == 0) 
+		{	/* EOF */
+			if (totRead == 0)	/* no byres read; return 0 */
+				return 0;
+			else
+				break;
+		} 
+		else 
+		{			/* numRead must be 1 if we get here*/
+			if (ch == '\n')
+				break;
+			if (ch == '\0')
+				break;
+			if (totRead < n - 1) 
+			{		/* discard > (n-1) bytes */
+				totRead++;
+				*buf++ = ch; 
+			}	
 		} 
 	}
 

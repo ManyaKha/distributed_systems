@@ -510,7 +510,7 @@ void identify_and_process_request(int socket)
 
 void register_user(int socket)
 {
-	int result = REGISTER_SUCCESS;
+	uint8_t result = REGISTER_SUCCESS;
 	
 	char username[MAX_USERNAME_LEN + 1];
 	if (read_username(socket, username) > 0)	// username specified
@@ -535,7 +535,8 @@ void register_user(int socket)
 	}
 
 	char response[2];
-	sprintf(response, "%d", result);
+	response[0] = result;
+	response[1] = '\0';
 	
 	if (send_msg(socket, response, 2) != 0)
 		printf("ERROR register_user - could not send message\n");
@@ -593,7 +594,7 @@ int is_registered(char* username)
 
 void unregister(int socket)
 {
-	int res = UNREGISTER_SUCCESS;
+	uint8_t res = UNREGISTER_SUCCESS;
 
 	char username[MAX_USERNAME_LEN + 1];
 	if (read_username(socket, username) > 0)	// username specified
@@ -613,10 +614,12 @@ void unregister(int socket)
 		res = UNREGISTER_OTHER_ERROR;
 	}
 	
-
 	char response[2];
-	sprintf(response, "%d", res);
-	send_msg(socket, response, 2);
+	response[0] = res;
+	response[1] = '\0';
+	
+	if (send_msg(socket, response, 2) != 0)
+		printf("ERROR unregister - could not send response\n");
 }
 
 
@@ -650,7 +653,7 @@ int is_connected(char* username)
 
 void list_users(int socket)
 {
-	int res = LIST_USERS_SUCCESS;
+	uint8_t res = LIST_USERS_SUCCESS;
 	user* users_list = NULL;
 	int num_of_users = -1;
 
@@ -675,8 +678,14 @@ void list_users(int socket)
 
 	// send result
 	char response_res_code[2];
-	sprintf(response_res_code, "%d", res);
-	send_msg(socket, response_res_code, 2);
+	response_res_code[0] = res;
+	response_res_code[1] = '\0';
+
+	if (send_msg(socket, response_res_code, 2) != 0)
+	{
+		printf("ERROR list_users - could not send response\n");
+		return;
+	}
 
 	if (res == LIST_USERS_SUCCESS)
 		send_users_list(socket, users_list, num_of_users);
