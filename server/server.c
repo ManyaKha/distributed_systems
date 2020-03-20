@@ -33,11 +33,13 @@
 #define REQ_REGISTER "REGISTER"
 #define REQ_UNREGISTER "UNREGISTER"
 #define REQ_LIST_USERS "LIST_USERS"
+#define REQ_LIST_CONTENT "LIST_CONTENT"
 // register
 #define MAX_USERNAME_LEN 256
 #define REGISTER_SUCCESS 0
 #define REGISTER_NON_UNIQUE_USERNAME 1
 #define REGISTER_OTHER_ERROR 2
+#define MAX_NUMBER_OF_USERS 4000000
 // store user
 #define STORE_USER_SUCCESS 0
 // unregister
@@ -47,6 +49,9 @@
 // delete user
 #define DELETE_USER_SUCCESS 0
 #define DELETE_USER_NO_SUCH_USER 1
+// publish
+#define MAX_FILENAME_LEN 256
+#define MAX_NUMBER_OF_FILES 100000
 // list users
 #define LIST_USERS_SUCCESS 0
 #define LIST_USERS_NO_SUCH_USER 1
@@ -58,7 +63,16 @@
 #define SEND_USERS_LIST_ERR_USERNAME 2
 #define SEND_USERS_LIST_ERR_IP 3
 #define SEND_USERS_LIST_ERR_PORT 4
-
+// list content
+#define LIST_CONTENT_SUCCESS 0
+#define LIST_CONTENT_NOT_REGISTERED 1
+#define LIST_CONTENT_DISCONNECTED 2
+#define LIST_CONTENT_NO_SUCH_FILES_OWNER 3
+#define LIST_CONTENT_OTHER_ERROR 4
+// send content list
+#define SEND_CONTENT_LIST_SUCCESS 0
+#define SEND_CONTENT_LIST_ERR_NUM_OF_FILES 1
+#define SEND_CONTENT_LIST_ERR_FILENAME 2
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -143,6 +157,7 @@ void identify_and_process_request(int socket);
 void register_user(int socket);
 
 /*
+	Reads username from the socket and puts it's value into the address space pointed by username.
 	Returns number of characters read
 */
 int read_username(int socket, char* username);
@@ -157,11 +172,20 @@ int is_username_valid(char* username);
 	Returns 1 if the user is registered and 0 if no
 */
 int is_registered(char* username);
-
+/*
+	Stores user persistently.
+	Return
+	TODO
+*/
 int store_user(char* username);
 
 void unregister(int socket);
-
+/*
+	deletes the user with the username specified from the storage.
+	Returns
+	DELETE_USER_SUCCESS 		- success
+	DELETE_USER_NO_SUCH_USER 	- there is no user with the specified username
+*/
 int delete_user(char* username);
 /*
 	checks if the user with the username is connected to the server.
@@ -170,10 +194,15 @@ int delete_user(char* username);
 int is_connected(char* username);
 
 void list_users(int socket);
-
-int get_connected_users_list(user** users_list);
+/*
+	dynamically allocates an array of users which are connected to the system, so
+	it has to be deleted afterwards.
+	Returns number of connected users
+*/
+uint32_t get_connected_users_list(user** p_users_list);
 
 /*
+	Sends list of users through the socket. First username is send, then ip and finally port.
 	Returns:
 	SEND_USERS_LIST_SUCCESS 			- success
 	SEND_USERS_LIST_ERR_NUM_OF_USERS 	- could not send number of users
@@ -181,7 +210,23 @@ int get_connected_users_list(user** users_list);
 	SEND_USERS_LIST_ERR_IP 				- could not send ip
 	SEND_USERS_LIST_ERR_PORT 			- could not send port
 */
-int send_users_list(int socket, user* users_list, int num_of_users);
+int send_users_list(int socket, user* users_list, uint32_t num_of_users);
+
+void list_content(int socket);
+/*
+	dynamically allocates an array of filenames of files of the specified user, so it has
+	to be deleted afterwards.
+	Returns number of files
+*/
+uint32_t get_user_content(char* username, char*** p_user_content);
+/*
+	Sends list of content (names of files) through the socket.
+	Returns:
+	SEND_CONTENT_LIST_SUCCESS 			- success
+	SEND_CONTENT_LIST_ERR_NUM_OF_FILES 	- could not send number of files
+	SEND_CONTENT_LIST_ERR_FILENAME 		- could not send filename
+*/
+int send_content_list(int socket, char** content_list, uint32_t num_of_files);
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -517,6 +562,8 @@ void identify_and_process_request(int socket)
 		unregister(socket);
 	else if (strcmp(req_type, REQ_LIST_USERS) == 0)
 		list_users(socket);
+	else if (strcmp(req_type, REQ_LIST_CONTENT) == 0)
+		list_content(socket);
 	else
 		printf("ERROR identify_and_process_request - no such request type\n");
 }
@@ -674,7 +721,7 @@ void list_users(int socket)
 {
 	uint8_t res = LIST_USERS_SUCCESS;
 	user* users_list = NULL;
-	int num_of_users = -1;
+	uint32_t num_of_users = 0;
 
 	char username[MAX_USERNAME_LEN + 1];
 	if (read_username(socket, username) > 0) // if user specified
@@ -695,30 +742,31 @@ void list_users(int socket)
 		res = LIST_USERS_OTHER_ERROR;
 	}
 
-	printf("res: %d\n", res);
 	// send result
 	char response_res_code[2];
 	response_res_code[0] = res;
 	response_res_code[1] = '\0';
 
-	if (send_msg(socket, response_res_code, 2) != 0)
+	if (send_msg(socket, response_res_code, 2) == 0)
 	{
+		if (res == LIST_USERS_SUCCESS)
+		{
+			int send_res = send_users_list(socket, users_list, num_of_users);
+
+			if (send_res != SEND_USERS_LIST_SUCCESS)
+				printf("ERROR list_users - could not send users. Code: %d\n", send_res);
+		}
+	}
+	else
 		printf("ERROR list_users - could not send response\n");
-		return;
-	}
 
-	if (res == LIST_USERS_SUCCESS)
-	{
-		int send_res = send_users_list(socket, users_list, num_of_users);
-
-		if (send_res != SEND_USERS_LIST_SUCCESS)
-			printf("ERROR list_users_list - could not send users. Code: %d\n", send_res);
-	}
+	if (users_list != NULL)
+		free(users_list);
 }
 
 
 
-int get_connected_users_list(user** p_users_list)
+uint32_t get_connected_users_list(user** p_users_list)
 {
 	// TODO do real implementation
 	printf("NOT YET IMPLEMENTED get_connected_users_list\n");
@@ -744,16 +792,16 @@ int get_connected_users_list(user** p_users_list)
 
 
 
-int send_users_list(int socket, user* users_list, int num_of_users)
+int send_users_list(int socket, user* users_list, uint32_t num_of_users)
 {
 	// send number of users
-	char str_num_of_users[12];
+	char str_num_of_users[8]; // max number of users is 4 000 000
 	sprintf(str_num_of_users, "%d", num_of_users);
 	if (send_msg(socket, str_num_of_users, strlen(str_num_of_users) + 1) != 0)
 		return SEND_USERS_LIST_ERR_NUM_OF_USERS;
 
 	// send users' data
-	for (int i = 0; i < num_of_users; i++)
+	for (uint32_t i = 0; i < num_of_users; i++)
 	{
 		if (send_msg(socket, users_list[i].username, strlen(users_list[i].username) + 1) != 0)
 			return SEND_USERS_LIST_ERR_USERNAME;
@@ -764,6 +812,107 @@ int send_users_list(int socket, user* users_list, int num_of_users)
 	}
 
 	return SEND_USERS_LIST_SUCCESS;
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// list_content
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void list_content(int socket)
+{
+	uint8_t res = LIST_CONTENT_SUCCESS;
+	char** content_list = NULL;
+	uint32_t num_of_files = 0;
+
+	char username[MAX_USERNAME_LEN + 1];
+	if (read_username(socket, username) > 0) // if requesting user specified
+	{
+		if (is_registered(username))
+		{
+			if (is_connected(username))
+			{
+				char content_owner[MAX_USERNAME_LEN + 1];
+				if (read_username(socket, content_owner) > 0) // content owner specified
+					num_of_files = get_user_content(content_owner, &content_list);
+				else // no content owner specified
+					res = LIST_CONTENT_NO_SUCH_FILES_OWNER;
+			}
+			else
+				res = LIST_CONTENT_DISCONNECTED;
+		}
+		else
+			res = LIST_CONTENT_NOT_REGISTERED;
+	}
+	else // no requesting user's username specified
+	{
+		printf("ERROR list_content - no requesting user specified");
+		res = LIST_CONTENT_OTHER_ERROR;
+	}
+
+	// send result
+	char response_res_code[2];
+	response_res_code[0] = res;
+	response_res_code[1] = '\0';
+
+	if (send_msg(socket, response_res_code, 2) == 0)
+	{
+		if (res == LIST_CONTENT_SUCCESS)
+		{
+			int send_res = send_content_list(socket, content_list, num_of_files);
+
+			if (send_res != SEND_CONTENT_LIST_SUCCESS)
+				printf("ERROR list_content - could not send content. Code: %d\n", send_res);
+		}
+	}
+	else
+		printf("ERROR list_content - could not send response\n");
+
+	if (content_list != NULL)
+	{
+		for (uint32_t i = 0; i < num_of_files; i++)
+			free(content_list[i]);
+		free(content_list);
+	}
+}
+
+uint32_t get_user_content(char* username, char*** p_user_content)
+{
+	// TODO do real implementation
+	printf("NOT YET IMPLEMENTED get_user_content\n");
+
+	char** user_content = malloc(3 * (sizeof(char*)));
+	for (int i = 0; i < 3; i++)
+	{
+		user_content[i] = malloc(4 * sizeof(char));
+	}
+	strcpy(user_content[0], "f_1");
+	strcpy(user_content[1], "f_2");
+	strcpy(user_content[2], "f_3");
+
+	*p_user_content = user_content;
+
+	return 3;
+}
+
+int send_content_list(int socket, char** content_list, uint32_t num_of_files)
+{
+	// send number of files
+	char str_num_of_files[7];	// max number of files is 100000
+	sprintf(str_num_of_files, "%d", num_of_files);
+
+	if (send_msg(socket, str_num_of_files, strlen(str_num_of_files) + 1) != 0)
+		return SEND_CONTENT_LIST_ERR_NUM_OF_FILES;
+
+	// send users' data
+	for (uint32_t i = 0; i < num_of_files; i++)
+	{
+		if (send_msg(socket, content_list[i], strlen(content_list[i]) + 1) != 0)
+			return SEND_CONTENT_LIST_ERR_FILENAME;
+	}
+
+	return SEND_CONTENT_LIST_SUCCESS;
 }
 
 
