@@ -32,6 +32,7 @@
 #define MAX_REQ_TYPE_LEN 20
 #define REQ_REGISTER "REGISTER"
 #define REQ_UNREGISTER "UNREGISTER"
+#define REQ_LIST_USERS "LIST_USERS"
 // register
 #define MAX_USERNAME_LEN 256
 #define REGISTER_SUCCESS 0
@@ -51,6 +52,12 @@
 #define LIST_USERS_NO_SUCH_USER 1
 #define LIST_USERS_DISCONNECTED 2
 #define LIST_USERS_OTHER_ERROR 3
+// send users list
+#define SEND_USERS_LIST_SUCCESS 0
+#define SEND_USERS_LIST_ERR_NUM_OF_USERS 1
+#define SEND_USERS_LIST_ERR_USERNAME 2
+#define SEND_USERS_LIST_ERR_IP 3
+#define SEND_USERS_LIST_ERR_PORT 4
 
 
 
@@ -166,7 +173,15 @@ void list_users(int socket);
 
 int get_connected_users_list(user** users_list);
 
-void send_users_list(int socket, user* users_list, int num_of_users);
+/*
+	Returns:
+	SEND_USERS_LIST_SUCCESS 			- success
+	SEND_USERS_LIST_ERR_NUM_OF_USERS 	- could not send number of users
+	SEND_USERS_LIST_ERR_USERNAME 		- could not send username
+	SEND_USERS_LIST_ERR_IP 				- could not send ip
+	SEND_USERS_LIST_ERR_PORT 			- could not send port
+*/
+int send_users_list(int socket, user* users_list, int num_of_users);
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -484,7 +499,7 @@ void* manage_request(void* p_socket)
 	if (close(socket) != 0)
 		perror("ERROR manage request - could not close client socket");
 
-	return NULL;
+	pthread_exit(NULL);
 }
 
 
@@ -500,6 +515,10 @@ void identify_and_process_request(int socket)
 		register_user(socket);
 	else if (strcmp(req_type, REQ_UNREGISTER) == 0)
 		unregister(socket);
+	else if (strcmp(req_type, REQ_LIST_USERS) == 0)
+		list_users(socket);
+	else
+		printf("ERROR identify_and_process_request - no such request type\n");
 }
 
 
@@ -676,6 +695,7 @@ void list_users(int socket)
 		res = LIST_USERS_OTHER_ERROR;
 	}
 
+	printf("res: %d\n", res);
 	// send result
 	char response_res_code[2];
 	response_res_code[0] = res;
@@ -688,7 +708,12 @@ void list_users(int socket)
 	}
 
 	if (res == LIST_USERS_SUCCESS)
-		send_users_list(socket, users_list, num_of_users);
+	{
+		int send_res = send_users_list(socket, users_list, num_of_users);
+
+		if (send_res != SEND_USERS_LIST_SUCCESS)
+			printf("ERROR list_users_list - could not send users. Code: %d\n", send_res);
+	}
 }
 
 
@@ -696,6 +721,8 @@ void list_users(int socket)
 int get_connected_users_list(user** p_users_list)
 {
 	// TODO do real implementation
+	printf("NOT YET IMPLEMENTED get_connected_users_list\n");
+	
 	user* users = malloc(3 * sizeof(user));
 
 	strcpy(users[0].username, "user1");
@@ -717,11 +744,26 @@ int get_connected_users_list(user** p_users_list)
 
 
 
-void send_users_list(int socket, user* users_list, int num_of_users)
+int send_users_list(int socket, user* users_list, int num_of_users)
 {
 	// send number of users
+	char str_num_of_users[12];
+	sprintf(str_num_of_users, "%d", num_of_users);
+	if (send_msg(socket, str_num_of_users, strlen(str_num_of_users) + 1) != 0)
+		return SEND_USERS_LIST_ERR_NUM_OF_USERS;
 
+	// send users' data
+	for (int i = 0; i < num_of_users; i++)
+	{
+		if (send_msg(socket, users_list[i].username, strlen(users_list[i].username) + 1) != 0)
+			return SEND_USERS_LIST_ERR_USERNAME;
+		if (send_msg(socket, users_list[i].ip, strlen(users_list[i].ip) + 1) != 0)
+			return SEND_USERS_LIST_ERR_IP;
+		if (send_msg(socket, users_list[i].port, strlen(users_list[i].port) + 1) != 0)
+			return SEND_USERS_LIST_ERR_PORT;
+	}
 
+	return SEND_USERS_LIST_SUCCESS;
 }
 
 
