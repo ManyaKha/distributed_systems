@@ -294,11 +294,19 @@ int main(int argc, char* argv[])
         // accept connection from a client
         client_socket = accept(server_socket, (struct sockaddr*) &client_addr, &clinet_addr_size);
 
-		if (pthread_create(&t_request, &attr_req_thread, manage_request, (void*) &client_socket) != 0)
-			perror("ERROR main - could not create request thread");
+		if (client_socket >= 0)
+		{
+			if (pthread_create(&t_request, &attr_req_thread, manage_request, (void*) &client_socket) != 0)
+				perror("ERROR main - could not create request thread");
 
-		if (wait_till_socket_copying_is_done() != 0)
+			if (wait_till_socket_copying_is_done() != 0)
+				return -1;
+		}
+		else
+		{
+			perror("ERROR main - could not accept request from socket");
 			return -1;
+		}
     }
 
 	return clean_up(server_socket, &attr_req_thread);
