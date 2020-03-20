@@ -260,6 +260,11 @@ int main(int argc, char* argv[])
 	int port = obtain_port(argc, argv);
 	port = process_obtain_port_result(port);
 
+	// TODO obtain local ip address
+	char addr[] = "192.168.0.102";	// just temporary, needs to be changed
+
+	printf("init server %s:%d\n", addr, port);
+
 	// initialize the main socket
 	int server_socket = -1;
 	int init_socket_res = init_socket(port, &server_socket);
@@ -340,8 +345,6 @@ int process_obtain_port_result(int port)
 		final_port = DEFAULT_PORT;
 		printf("Default port %d assigned\n", DEFAULT_PORT);
 	}
-	else
-		printf("Server started on port: %d\n", port);
 
 	return final_port;
 }
