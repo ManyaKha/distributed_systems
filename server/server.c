@@ -39,7 +39,7 @@
 #define REGISTER_SUCCESS 0
 #define REGISTER_NON_UNIQUE_USERNAME 1
 #define REGISTER_OTHER_ERROR 2
-#define MAX_NUMBER_OF_USERS 4000000
+#define MAX_NUM_OF_USERS 4000000
 // store user
 #define STORE_USER_SUCCESS 0
 // unregister
@@ -172,6 +172,10 @@ int is_username_valid(char* username);
 	Returns 1 if the user is registered and 0 if no
 */
 int is_registered(char* username);
+/*
+	Returns number of registered users
+*/
+uint32_t get_num_of_users();
 /*
 	Stores user persistently.
 	Return
@@ -578,25 +582,33 @@ void register_user(int socket)
 {
 	uint8_t result = REGISTER_SUCCESS;
 	
-	char username[MAX_USERNAME_LEN + 1];
-	if (read_username(socket, username) > 0)	// username specified
+	if (get_num_of_users() < MAX_NUM_OF_USERS)
 	{
-		if (is_username_valid(username))
+		char username[MAX_USERNAME_LEN + 1];
+		if (read_username(socket, username) > 0)	// username specified
 		{
-			if (!is_registered(username))
+			if (is_username_valid(username))
 			{
-				if (store_user(username) != STORE_USER_SUCCESS)
-					result = REGISTER_OTHER_ERROR;
+				if (!is_registered(username))
+				{
+					if (store_user(username) != STORE_USER_SUCCESS)
+						result = REGISTER_OTHER_ERROR;
+				}
+				else
+					result = REGISTER_NON_UNIQUE_USERNAME;
 			}
 			else
-				result = REGISTER_NON_UNIQUE_USERNAME;
+				result = REGISTER_OTHER_ERROR;
 		}
-		else
+		else	// no username
+		{
+			printf("ERROR register_user - no username\n");
 			result = REGISTER_OTHER_ERROR;
+		}
 	}
-	else	// no username
+	else
 	{
-		printf("ERROR register_user - no username\n");
+		printf("ERROR register_user - reached limit of users\n");
 		result = REGISTER_OTHER_ERROR;
 	}
 
@@ -606,6 +618,15 @@ void register_user(int socket)
 	
 	if (send_msg(socket, response, 2) != 0)
 		printf("ERROR register_user - could not send message\n");
+}
+
+
+
+uint32_t get_num_of_users()
+{
+	// TODO implement
+	printf("NOT YET IMPLEMENTED get_num_of_users\n");
+	return 0;
 }
 
 
