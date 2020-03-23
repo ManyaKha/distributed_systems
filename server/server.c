@@ -10,6 +10,8 @@
 #include <pthread.h>
 #include "lines.h"
 #include <regex.h>
+#include <signal.h>
+#include <errno.h>
 
 
 
@@ -103,6 +105,11 @@ int obtain_port();
 	Returns obtained_port or default port if errors occured.
 */
 int process_obtain_port_result(int port);
+/*
+	starts listening for ctrl+c to finish the program.
+	Returns 1 on success and 0 on fail
+*/
+int start_listening_sigint();
 /*
 	Prints a cmd template for starting the server
 */
@@ -249,6 +256,11 @@ pthread_cond_t cond_csd;
 	yet copied)
 */
 int is_copied;
+/*
+	flat to mark if the programm should continue. if 1 then continue, if 0 then the main loop
+	should stop. It is set to 1 after pressing ctrl + c
+*/
+int is_running = 1;
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -289,7 +301,11 @@ int main(int argc, char* argv[])
 	int client_socket;
     socklen_t clinet_addr_size = sizeof(struct sockaddr_in);
 
-    while (1)
+	// start detecting ctrl + c
+	if (!start_listening_sigint())
+		return -1;
+
+    while (is_running)
     {
         // accept connection from a client
         client_socket = accept(server_socket, (struct sockaddr*) &client_addr, &clinet_addr_size);
@@ -302,13 +318,13 @@ int main(int argc, char* argv[])
 			if (wait_till_socket_copying_is_done() != 0)
 				return -1;
 		}
-		else
+		else if (errno != EINTR) // if EINTR then ctrl+c was pressed, finish
 		{
 			perror("ERROR main - could not accept request from socket");
 			return -1;
 		}
     }
-
+	
 	return clean_up(server_socket, &attr_req_thread);
 }
 
@@ -461,6 +477,31 @@ int init_request_thread_attr(pthread_attr_t* attr)
 	}
 
 	return 0;
+}
+
+
+
+void set_exit_flat(int val)
+{
+	is_running = 0;
+}
+
+
+
+int start_listening_sigint()
+{
+	struct sigaction act;
+	memset(&act, '\0', sizeof(act));
+
+	act.sa_handler = &set_exit_flat;
+
+	if (sigaction(SIGINT, &act, NULL) != 0)
+	{
+		perror("ERROR start_listening_siginit - could not perform sigaction");
+		return 0;
+	}
+
+	return 1;
 }
 
 
