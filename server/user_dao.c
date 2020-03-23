@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <pthread.h>
+#include <string.h>
 
 
 
@@ -9,7 +10,7 @@
 // constants
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // paths
-#define STORAGE_DIR_PATH "storage"
+#define STORAGE_DIR_PATH "storage/"
 
 
 
@@ -65,5 +66,19 @@ int destroy_user_dao()
 
 int create_user(char* name)
 {
-    return 0;
+    // create user directory path
+    char dir_path[strlen(STORAGE_DIR_PATH) + strlen(name) + 1];
+    strcpy(dir_path, STORAGE_DIR_PATH);
+    strcat(dir_path, name);
+
+    // create user directory
+    if (mkdir(dir_path, S_IRWXU) != 0)
+    {          
+        if (errno == EEXIST)     
+            return CREATE_USER_ERR_EXISTS;    
+        else
+            return CREATE_USER_ERR_DIRECTORY;             
+    }
+
+    return CREATE_USER_SUCCESS;
 }

@@ -8,6 +8,8 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // create user
 #define CREATE_USER_SUCCESS 0
+#define CREATE_USER_ERR_EXISTS 1
+#define CREATE_USER_ERR_DIRECTORY 2
 // init
 #define INIT_USER_DAO_SUCCESS 0
 #define INIT_USER_DAO_ERR_FOLDER_CREATION 1
