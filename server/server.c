@@ -571,6 +571,13 @@ int clean_up(int server_socket, pthread_attr_t* p_attr)
 		return -1;
 	}
 
+	int destroy_user_dao_res = destroy_user_dao();
+	if (destroy_user_dao_res != DESTROY_USER_DAO_SUCCESS)
+	{
+		printf("ERROR clean up - could not destroy user dao. Code: %d\n", destroy_user_dao_res);
+		return -1;
+	}
+
 	return 0;
 }
 
