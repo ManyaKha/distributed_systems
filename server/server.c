@@ -12,6 +12,7 @@
 #include <regex.h>
 #include <signal.h>
 #include <errno.h>
+#include "user_dao.h"
 
 
 
@@ -295,6 +296,14 @@ int main(int argc, char* argv[])
 		return -1;
 
 	pthread_t t_request;
+
+	// init storage
+	int init_user_dao_res = init_user_dao();
+	if (init_user_dao_res != INIT_USER_DAO_SUCCESS)
+	{
+		printf("ERROR main - could not initialize user dao. Code: %d\n", init_user_dao_res);
+		return -1;
+	}
 	
 	// start waiting for requests
 	struct sockaddr_in client_addr;
