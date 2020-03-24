@@ -268,3 +268,21 @@ int get_user_files_list(char* username, char*** p_user_files, uint32_t* p_quanti
 
 	return res;
 }
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// is_registered
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+int is_registered(char* username)
+{
+    int user_folder_path_len = strlen(STORAGE_DIR_PATH) + strlen(username);
+    char dir_path[user_folder_path_len + 1]; 
+    strcpy(dir_path, STORAGE_DIR_PATH);
+    strcat(dir_path, username);
+
+    struct stat st = {0};
+
+    return stat(dir_path, &st) == 0 ? 1 : 0;
+}

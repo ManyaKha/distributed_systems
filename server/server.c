@@ -169,11 +169,6 @@ int read_username(int socket, char* username);
 	Returns 1 if yes 0 if no
 */
 int is_username_valid(char* username);
-/*
-	checks if the user with the username is registered.
-	Returns 1 if the user is registered and 0 if no
-*/
-int is_registered(char* username);
 
 void unregister(int socket);
 /*
@@ -673,19 +668,6 @@ int is_username_valid(char* username)
 	regfree(&regex);
 
 	return res;
-}
-
-
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// is_registered
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-int is_registered(char* username)
-{
-	// TODO IMPLEMENT
-	printf("NOT YET IMPLEMENTED is_username_unique\n");
-	return 1;
 }
 
 

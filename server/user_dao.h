@@ -44,3 +44,8 @@ int destroy_user_dao();
 int create_user(char* name);
 int delete_user(char* name);
 int get_user_files_list(char* username, char*** p_user_files, uint32_t* p_quantity);
+/*
+	checks if the user with the username is registered.
+	Returns 1 if the user is registered and 0 if no
+*/
+int is_registered(char* username);
