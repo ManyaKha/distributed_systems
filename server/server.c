@@ -46,9 +46,6 @@
 #define UNREGISTER_SUCCESS 0
 #define UNREGISTER_NO_SUCH_USER 1
 #define UNREGISTER_OTHER_ERROR 2
-// delete user
-#define DELETE_USER_SUCCESS 0
-#define DELETE_USER_NO_SUCH_USER 1
 // publish
 #define MAX_FILENAME_LEN 256
 #define MAX_NUMBER_OF_FILES 100000
@@ -179,13 +176,6 @@ int is_username_valid(char* username);
 int is_registered(char* username);
 
 void unregister(int socket);
-/*
-	deletes the user with the username specified from the storage.
-	Returns
-	DELETE_USER_SUCCESS 		- success
-	DELETE_USER_NO_SUCH_USER 	- there is no user with the specified username
-*/
-int delete_user(char* username);
 /*
 	checks if the user with the username is connected to the server.
 	Returns 1 if the user is connected and 0 if no
@@ -722,7 +712,7 @@ void unregister(int socket)
 		switch (delete_res)
 		{
 			case DELETE_USER_SUCCESS 		: res = UNREGISTER_SUCCESS; break;
-			case DELETE_USER_NO_SUCH_USER 	: res = UNREGISTER_NO_SUCH_USER; break;
+			case DELETE_USER_ERR_NOT_EXISTS : res = UNREGISTER_NO_SUCH_USER; break;
 			default							: res = UNREGISTER_OTHER_ERROR; 
 		}
 	}
@@ -738,15 +728,6 @@ void unregister(int socket)
 	
 	if (send_msg(socket, response, 2) != 0)
 		printf("ERROR unregister - could not send response\n");
-}
-
-
-
-int delete_user(char* username)
-{
-	// TODO IMPLEMENT
-	printf("NOT YET IMPLEMENTED delete_user\n");
-	return DELETE_USER_SUCCESS;
 }
 
 

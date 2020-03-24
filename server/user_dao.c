@@ -3,6 +3,8 @@
 #include <sys/stat.h>
 #include <pthread.h>
 #include <string.h>
+#include <stdio.h>
+#include <dirent.h>
 
 
 
@@ -11,6 +13,13 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // paths
 #define STORAGE_DIR_PATH "storage/"
+// names lengths
+#define MAX_FILENAME_LEN 256
+// delete_all_user_files
+#define DELETE_ALL_USER_FILES_SUCCESS 0
+#define DELETE_ALL_USER_FILES_ERR_NO_SUCH_USER 1
+#define DELETE_ALL_USER_FILES_ERR_REMOVE 2
+#define DELETE_ALL_USER_FILES_ERR_CLOSE_DIR 3
 
 
 
@@ -77,8 +86,100 @@ int create_user(char* name)
         if (errno == EEXIST)     
             return CREATE_USER_ERR_EXISTS;    
         else
-            return CREATE_USER_ERR_DIRECTORY;             
+        {
+            perror("ERROR create_user - could not create directory");
+            return CREATE_USER_ERR_DIRECTORY;   
+        }          
     }
 
     return CREATE_USER_SUCCESS;
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// delete_user
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+int delete_all_user_files(char* user_dir_path, int file_path_len)
+{
+    int res = DELETE_ALL_USER_FILES_SUCCESS;
+
+    // delete user files
+    DIR* p_user_dir = opendir(user_dir_path);
+    if (p_user_dir != NULL)
+    {
+        struct dirent* p_next_file;
+        char filepath[file_path_len + 1];
+
+        while ((p_next_file = readdir(p_user_dir)) != NULL )
+        {
+            if (p_next_file->d_name[0] != '.') // ignore 'non files'
+            {
+                // build the path for each file in the folder
+                sprintf(filepath, "%s%s", user_dir_path, p_next_file->d_name);
+                if (remove(filepath) != 0)
+                {
+                    perror("ERROR delete_all_user_files - could not remove file");
+                    return DELETE_ALL_USER_FILES_ERR_REMOVE;
+                }
+            }
+        }
+        
+        if (closedir(p_user_dir) != 0)
+        {
+            perror("ERROR delete_all_user_files - could not close dir");
+            return DELETE_ALL_USER_FILES_ERR_CLOSE_DIR;
+        }
+    }
+    else // no such user
+        res = DELETE_ALL_USER_FILES_ERR_NO_SUCH_USER;
+
+    return res;
+}
+
+
+
+int delete_user(char* name)
+{
+    int res = DELETE_USER_SUCCESS;
+
+    // acquire the storage mutex
+    if (pthread_mutex_lock(&mutex_storage) == 0)
+    {
+        // create user directory path. + 1 because additional / to separate dir from file
+        int user_folder_path_len = strlen(STORAGE_DIR_PATH) + strlen(name) + 1;
+        int file_path_len = user_folder_path_len + MAX_FILENAME_LEN; 
+        char dir_path[user_folder_path_len + 1]; 
+        strcpy(dir_path, STORAGE_DIR_PATH);
+        strcat(dir_path, name);
+        strcat(dir_path, "/");
+
+        // first delete all user's files
+        int del_files_res = delete_all_user_files(dir_path, file_path_len);
+        if (del_files_res == DELETE_ALL_USER_FILES_SUCCESS)
+        {
+            // remove user directory
+            if (remove(dir_path) != 0)
+                res = DELETE_USER_ERR_REMOVE_FOLDER;
+        }
+        else if (del_files_res == DELETE_ALL_USER_FILES_ERR_NO_SUCH_USER)
+            res = DELETE_USER_ERR_NOT_EXISTS;
+        else
+            res = DELETE_USER_ERR_REMOVE_FILE;
+
+        // unlock the storage mutex
+        if (pthread_mutex_unlock(&mutex_storage) != 0)
+        {
+            res = DELETE_USER_ERR_MUTEX_UNLOCK;
+            printf("ERROR delete_user - could not unlock mutex\n");
+        }
+    }
+    else // couldn't acquire the storage mutex
+    {
+        res = DELETE_USER_ERR_MUTEX_LOCK;
+        printf("ERROR delete_user - could not lock mutex\n");
+    }
+
+    return res;
 }
