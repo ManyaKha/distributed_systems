@@ -169,11 +169,6 @@ int read_username(int socket, char* username);
 	Returns 1 if yes 0 if no
 */
 int is_username_valid(char* username);
-/*
-	checks if the user with the username is registered.
-	Returns 1 if the user is registered and 0 if no
-*/
-int is_registered(char* username);
 
 void unregister(int socket);
 /*
@@ -202,12 +197,6 @@ uint32_t get_connected_users_list(user** p_users_list);
 int send_users_list(int socket, user* users_list, uint32_t num_of_users);
 
 void list_content(int socket);
-/*
-	dynamically allocates an array of filenames of files of the specified user, so it has
-	to be deleted afterwards.
-	Returns number of files
-*/
-uint32_t get_user_content(char* username, char*** p_user_content);
 /*
 	Sends list of content (names of files) through the socket.
 	Returns:
@@ -684,19 +673,6 @@ int is_username_valid(char* username)
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// is_registered
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-int is_registered(char* username)
-{
-	// TODO IMPLEMENT
-	printf("NOT YET IMPLEMENTED is_username_unique\n");
-	return 1;
-}
-
-
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // unregister
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -868,14 +844,22 @@ void list_content(int socket)
 			{
 				char content_owner[MAX_USERNAME_LEN + 1];
 				if (read_username(socket, content_owner) > 0) // content owner specified
-					num_of_files = get_user_content(content_owner, &content_list);
+				{
+					int get_f_res = get_user_files_list(content_owner, &content_list, 
+						&num_of_files);
+
+					if (get_f_res == GET_USER_FILES_LIST_ERR_NO_SUCH_USER)
+						res = LIST_CONTENT_NO_SUCH_FILES_OWNER;
+					else if (get_f_res != GET_USER_FILES_LIST_SUCCESS)
+						res = LIST_CONTENT_OTHER_ERROR;
+				}
 				else // no content owner specified
 					res = LIST_CONTENT_NO_SUCH_FILES_OWNER;
 			}
 			else
 				res = LIST_CONTENT_DISCONNECTED;
 		}
-		else
+		else // requesting user not registered
 			res = LIST_CONTENT_NOT_REGISTERED;
 	}
 	else // no requesting user's username specified
@@ -910,24 +894,7 @@ void list_content(int socket)
 	}
 }
 
-uint32_t get_user_content(char* username, char*** p_user_content)
-{
-	// TODO do real implementation
-	printf("NOT YET IMPLEMENTED get_user_content\n");
 
-	char** user_content = malloc(3 * (sizeof(char*)));
-	for (int i = 0; i < 3; i++)
-	{
-		user_content[i] = malloc(4 * sizeof(char));
-	}
-	strcpy(user_content[0], "f_1");
-	strcpy(user_content[1], "f_2");
-	strcpy(user_content[2], "f_3");
-
-	*p_user_content = user_content;
-
-	return 3;
-}
 
 int send_content_list(int socket, char** content_list, uint32_t num_of_files)
 {

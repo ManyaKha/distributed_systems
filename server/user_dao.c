@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <dirent.h>
+#include <stdlib.h> 
 
 
 
@@ -182,4 +183,106 @@ int delete_user(char* name)
     }
 
     return res;
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// get_user_files_list
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+uint32_t count_user_files(DIR* p_directory)
+{
+    uint32_t quantity = 0;
+    struct dirent* p_next_file;
+
+    while ((p_next_file = readdir(p_directory)) != NULL)
+    {
+        if (p_next_file->d_name[0] != '.') // skip files which are not part of the storage
+            ++quantity;
+    }
+
+    rewinddir(p_directory);
+
+    return quantity;
+}
+
+
+
+int get_user_files_list(char* username, char*** p_user_files, uint32_t* p_quantity)
+{
+    int res = GET_USER_FILES_LIST_SUCCESS;
+
+    // create user directory path
+    int user_folder_path_len = strlen(STORAGE_DIR_PATH) + strlen(username) + 1; // + 1 --> /
+    char user_dir_path[user_folder_path_len + 1]; 
+    strcpy(user_dir_path, STORAGE_DIR_PATH);
+    strcat(user_dir_path, username);
+    strcat(user_dir_path, "/");
+
+	// open user directory
+    if (pthread_mutex_lock(&mutex_storage) == 0)
+    {
+        DIR* p_user_dir = opendir(user_dir_path);
+        if (p_user_dir != NULL)
+        {
+            struct dirent* p_next_file;
+            char* file_name;
+            *p_quantity = count_user_files(p_user_dir);
+            char** user_files = malloc(*p_quantity * sizeof(char*));
+            int file_idx = 0;
+
+            while ((p_next_file = readdir(p_user_dir)) != NULL )
+            {
+                file_name = p_next_file->d_name;
+                if (file_name[0] != '.') // ignore 'non files'
+                {
+                    user_files[file_idx] = malloc((strlen(file_name) + 1) * sizeof(char));
+                    strcpy(user_files[file_idx], file_name);
+                    ++file_idx;
+                }
+            }
+
+            *p_user_files = user_files;
+            
+            if (closedir(p_user_dir) != 0)
+            {
+                perror("ERROR get_user_files_list - could not close dir");
+                res = GET_USER_FILES_LIST_ERR_CLOSE_DIR;
+            }
+        }
+        else // no such user
+            res = GET_USER_FILES_LIST_ERR_NO_SUCH_USER;
+
+        if (pthread_mutex_unlock(&mutex_storage) != 0)
+        {
+            res = GET_USER_FILES_LIST_ERR_MUTEX_UNLOCK;
+            printf("ERROR get_user_files_list - could not unlock mutex\n");
+        }
+    }
+    else // couldn't lock mutex
+    {
+        res = GET_USER_FILES_LIST_ERR_MUTEX_LOCK;
+        printf("ERROR get_user_files_list - could not lock mutex\n");
+    }
+
+	return res;
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// is_registered
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+int is_registered(char* username)
+{
+    int user_folder_path_len = strlen(STORAGE_DIR_PATH) + strlen(username);
+    char dir_path[user_folder_path_len + 1]; 
+    strcpy(dir_path, STORAGE_DIR_PATH);
+    strcat(dir_path, username);
+
+    struct stat st = {0};
+
+    return stat(dir_path, &st) == 0 ? 1 : 0;
 }
