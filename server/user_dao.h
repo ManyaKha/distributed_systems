@@ -6,10 +6,6 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // constants
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// create user
-#define CREATE_USER_SUCCESS 0
-#define CREATE_USER_ERR_EXISTS 1
-#define CREATE_USER_ERR_DIRECTORY 2
 // init
 #define INIT_USER_DAO_SUCCESS 0
 #define INIT_USER_DAO_ERR_FOLDER_CREATION 1
@@ -17,6 +13,17 @@
 // destroy
 #define DESTROY_USER_DAO_SUCCESS 0
 #define DESTROY_USER_DAO_ERR_MUTEX 1
+// create user
+#define CREATE_USER_SUCCESS 0
+#define CREATE_USER_ERR_EXISTS 1
+#define CREATE_USER_ERR_DIRECTORY 2
+// delete user
+#define DELETE_USER_SUCCESS 0
+#define DELETE_USER_ERR_MUTEX_LOCK 1
+#define DELETE_USER_ERR_MUTEX_UNLOCK 2
+#define DELETE_USER_ERR_NOT_EXISTS 3
+#define DELETE_USER_ERR_REMOVE_FOLDER 4
+#define DELETE_USER_ERR_REMOVE_FILE 5
 
 
 
@@ -28,3 +35,4 @@ int destroy_user_dao();
         CREATE_USER_SUCCESS - success
 */
 int create_user(char* name);
+int delete_user(char* name);
