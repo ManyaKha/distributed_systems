@@ -1,3 +1,4 @@
+#include <stdint.h>
 /*
     encapsulates functions dealing with physicall storage.
     IMPORTANT before any operation will be performed it is required to call the init() function and
@@ -24,6 +25,12 @@
 #define DELETE_USER_ERR_NOT_EXISTS 3
 #define DELETE_USER_ERR_REMOVE_FOLDER 4
 #define DELETE_USER_ERR_REMOVE_FILE 5
+// get user files list
+#define GET_USER_FILES_LIST_SUCCESS 0
+#define GET_USER_FILES_LIST_ERR_NO_SUCH_USER 1
+#define GET_USER_FILES_LIST_ERR_MUTEX_LOCK 2
+#define GET_USER_FILES_LIST_ERR_MUTEX_UNLOCK 3
+#define GET_USER_FILES_LIST_ERR_CLOSE_DIR 4
 
 
 
@@ -36,3 +43,4 @@ int destroy_user_dao();
 */
 int create_user(char* name);
 int delete_user(char* name);
+int get_user_files_list(char* username, char*** p_user_files, uint32_t* p_quantity);
