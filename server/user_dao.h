@@ -86,3 +86,4 @@ int get_user_files_list(char* username, char*** p_user_files, uint32_t* p_quanti
 	Returns 1 if the user is registered and 0 if no
 */
 int is_registered(char* username);
+
