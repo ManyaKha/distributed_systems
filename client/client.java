@@ -1,16 +1,38 @@
 import java.io.*;
+import java.net.*;
 import gnu.getopt.Getopt;
 
 
 class client {
 	
+	private static enum RC {
+        OK,
+        ERROR,
+        USER_ERROR
+    };
 	
 	/******************* ATTRIBUTES *******************/
 	
 	private static String _server   = null;
 	private static int _port = -1;
 		
+	//socket of the server
+    private static ServerSocket server_Socket;
+    //variable used to check if the user is connected or not before performing some operations
+    private static Boolean connect = false; 	
+    //in this variable we store the name of the user which is currently working
+    private static String username = "";  
+    //variable used to control the execution of the thread of the client
+    private static Boolean operating_thread = true; 
 	
+
+	/******************* CONSTRUCTOR (For the thread) *******************/
+
+    public client(ServerSocket sc) {
+        this.server_Socket = sc;
+    }
+
+
 	/********************* METHODS ********************/
 	
 	/**
@@ -18,11 +40,45 @@ class client {
 	 * 
 	 * @return ERROR CODE
 	 */
-	static int register(String user) 
+	static RC register(String user)
 	{
+		try {
+			Socket client_Socket = new Socket(_server, _port);
+			DataOutputStream outToServer = new DataOutputStream(client_Socket.getOutputStream());
+
+			// send the message REGISTER to the server to perform the operation, as well as the username
+			outToServer.writeBytes("REGISTER\0");
+			outToServer.writeBytes(user+"\0");
+
+			// initialize the variable for receiving the message from the server and read it afterwards
+			DataInputStream inFromServer = new DataInputStream(client_Socket.getInputStream());
+			byte response = inFromServer.readByte();
+
+			// consider the different messages that can be sent by the server so we will print a message depending on the situation
+			switch (response) {
+				case 0:
+				System.out.println("c> REGISTER OK");
+				break;
+				case 1:
+				System.out.println("c> USERNAME IN USE");
+				break;
+				case 2:
+				System.out.println("c> REGISTER FAIL");
+				break;
+			}
+			//Once performed the operation, we close the socket
+			client_Socket.close();
+
+		}
+		catch(Exception e) {
+			System.out.println("Exception: " + e);
+			e.printStackTrace();
+			return RC.ERROR;
+		}
+		return RC.OK;
 		// Write your code here
-		System.out.println("REGISTER " + user);
-		return 0;
+		//System.out.println("REGISTER " + user);
+		//return 0;
 	}
 	
 	/**
